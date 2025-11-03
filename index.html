@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://kit.fontawesome.com/d9fcacfc99.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+  <title>Agenda Deportiva</title>
+  <link rel="stylesheet" href="estilos.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="top-left">
+        <h2 class="title" id="fecha-actual">Agenda Fecha</h2>
+      </div>
+      <div class="top-right">
+        <input id="search" class="search" type="search" placeholder="Buscar eventos..." aria-label="Buscar partidos" />
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="matches" class="matches" aria-live="polite"></div>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
