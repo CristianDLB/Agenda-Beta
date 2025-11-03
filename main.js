@@ -14,7 +14,7 @@ const estados = {
   3: { texto: "Finalizado", clase: "finalizado", icono:'<i class="fa-solid fa-clock"></i>' }
 };
 
-const FINALIZAR_MINUTOS = 120;
+const FINALIZAR_MINUTOS = 2;
 
 // Función utilitaria que calcula el estado local (1=En Vivo,2=Pronto,3=Finalizado)
 function computeEstadoLocal(m) {
@@ -40,7 +40,7 @@ function computeEstadoLocal(m) {
 // --- DATOS DE PARTIDOS ---
 const matches = [
   {
-    hora: "22:02",
+    hora: "22:30",
     liga: 4,
     partido: "Atletico vs St. Gilloise",
     canales: [
@@ -48,7 +48,7 @@ const matches = [
     ]
   },
   {
-    hora: "22:03",
+    hora: "22:32",
     liga: 4,
     partido: "Liverpool vs Real Madrid",
     canales: [
