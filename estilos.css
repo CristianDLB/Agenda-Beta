@@ -140,20 +140,28 @@ body {
 .status.pronto {
   background: #00b44e;
 }
+.status.finalizado {
+  background: #3B3B3B;
+}
 
 /* --- CONTENIDO DESPLEGABLE (CANALES) --- */
 .card-body {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+  opacity: 0;
+  padding: 0 12px;
+  transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.35s ease,
+              opacity 0.28s ease;
 }
 .card-body.open {
-  padding: 8px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px; 
+  gap: 10px;
   max-height: none;
   box-sizing: border-box;
+  opacity: 1;
 }
 
 /* --- BOTONES DE CANAL --- */
@@ -170,6 +178,17 @@ body {
   transition: background .2s ease;
   cursor:auto;
   margin-bottom: 4px;
+}
+
+/* efecto de entrada para los items dentro del body */
+.card-body .channel-link {
+  transform: translateY(-6px);
+  opacity: 0;
+  transition: transform 0.36s cubic-bezier(0.2, 0, 0, 1), opacity 0.36s ease;
+}
+.card-body.open .channel-link {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 .channel-link:hover {
