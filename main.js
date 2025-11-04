@@ -56,6 +56,14 @@ const matches = [
       { nombre: "ESPN 2", url: "https://www.espn.com" }
     ]
   },
+ {
+    hora: "03:06",
+    liga: 6,
+    partido: "Liga Profesional: Banfield vs Lanus",
+    canales: [
+      { nombre: "ESPN 2", url: "https://www.espn.com" }
+    ]
+  },
   {
     hora: "18:45",
     liga: 4,
@@ -80,24 +88,52 @@ const container = document.getElementById("matches");
 const search = document.getElementById("search");
 
 // --- FUNCIÓN DE RENDERIZADO PRINCIPAL ---
+
 function render(list) {
   container.innerHTML = "";
 
   const items = list.map((m) => {
     const logo = logos[m.liga] || "";
-    const { estado, dtLocal } = computeEstadoLocal(m);
+    const { estado, dtLocal, dtMadrid } = computeEstadoLocal(m);
     const origIdx = matches.indexOf(m);
-    return { m, origIdx, logo, estado, dtLocal };
+    return { m, origIdx, logo, estado, dtLocal, dtMadrid };
   });
 
-  items.sort((a, b) => {
-    if ((a.estado === 3) !== (b.estado === 3)) return a.estado === 3 ? 1 : -1;
-    return a.dtLocal.toMillis() - b.dtLocal.toMillis();
-  });
+items.sort((a, b) => {
+  const ahoraMadrid = luxon.DateTime.now().setZone('Europe/Madrid');
+
+  // Detectar partidos de mañana según hora >= 7 AM Madrid
+  const aManana = a.dtMadrid.hour >= 7;
+  const bManana = b.dtMadrid.hour >= 7;
+
+  // Ajustar estado final temporal: forzar Pronto para partidos de mañana
+  const estadoA = aManana ? 2 : a.estado;
+  const estadoB = bManana ? 2 : b.estado;
+
+  // 1️⃣ Primero los En Vivo
+  if (estadoA === 1 && estadoB !== 1) return -1;
+  if (estadoB === 1 && estadoA !== 1) return 1;
+
+  // 2️⃣ Luego partidos de hoy (Pronto)
+  if (!aManana && bManana) return -1;
+  if (!bManana && aManana) return 1;
+
+  // 3️⃣ Finalmente, Finalizados o mañana
+  if (estadoA === 3 && estadoB !== 3) return 1;
+  if (estadoB === 3 && estadoA !== 3) return -1;
+
+  // 4️⃣ Dentro del mismo grupo, ordenar por hora local
+  return a.dtLocal.toMillis() - b.dtLocal.toMillis();
+});
+
   // Renderizar según orden calculado
-  items.forEach(({ m, origIdx, logo, estado, dtLocal }) => {
-    const est = estados[estado] || estados[2];
+  items.forEach(({ m, origIdx, logo, estado, dtLocal, dtMadrid }) => {
+    // Si el partido es después de las 7 AM en Madrid, forzar "Pronto"
+    const estadoFinal = dtMadrid.hour >= 7 ? 2 : estado;
+
+    const est = estados[estadoFinal];
     const horaLocalAdaptada = dtLocal.toFormat("HH:mm");
+
     const card = document.createElement("article");
     card.className = "card";
     card.innerHTML = `
@@ -113,14 +149,12 @@ function render(list) {
         ${m.canales.map(c => `
           <div class="channel-link">
             <div class="ch-name">${c.nombre}</div>
-            ${estado === 1 ? `
+            ${estadoFinal === 1 ? `
             <div class="channel-actions">
               <button class="channel-btn copiar-btn" data-url="${c.url}"><i class="fa-solid fa-clipboard-check"></i> Copiar transmisión</button>
               <button class="channel-btn ver-btn" data-url="${c.url}"><i class="fa-solid fa-up-right-from-square"></i> Ver en vivo</button>
-            </div>
-            ` : ''}
-          </div>
-        `).join("")}
+            </div>` : ''}
+          </div>`).join("")}
       </div>
     `;
     container.appendChild(card);
@@ -179,7 +213,7 @@ function updateStates() {
     if (!m) return;
 
     const res = computeEstadoLocal(m);
-    let estadoAuto = res.estado;
+    let estadoAuto = res.dtMadrid.hour >= 7 ? 2 : res.estado;
     const prevEstado = window.__prevEstados[origIdx];
     if (prevEstado === 3 && estadoAuto === 2) {
       const nowMadrid = DateTime.now().setZone('Europe/Madrid');
