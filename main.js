@@ -15,57 +15,58 @@ const estados = {
   3: { texto: "Finalizado", clase: "finalizado", icono:'<i class="fa-solid fa-clock"></i>' }
 };
 
-const FINALIZAR_MINUTOS = 2;
+const FINALIZAR_MINUTOS = 120;
 
 // Función utilitaria que calcula el estado local (1=En Vivo,2=Pronto,3=Finalizado)
 function computeEstadoLocal(m) {
-  if (typeof luxon === 'undefined') return { estado: 2 };
-  const { DateTime } = luxon;
   const tzLocal = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const ahoraLocal = DateTime.now().setZone(tzLocal);
-  const [h, min] = m.hora.split(':').map(Number);
   const ahoraMadrid = DateTime.now().setZone('Europe/Madrid');
-  let dtMadrid = DateTime.fromObject({
-    year: ahoraMadrid.year,
-    month: ahoraMadrid.month,
-    day: ahoraMadrid.day,
-    hour: h,
-    minute: min
-  }, { zone: 'Europe/Madrid' });
-  if (dtMadrid > ahoraMadrid) {
-    const diffHours = dtMadrid.diff(ahoraMadrid, 'hours').hours;
-    if (diffHours > 12) {
-      // usar el día anterior
-      dtMadrid = dtMadrid.minus({ days: 1 });
-    }
-  }
+
+  const [h, min] = m.hora.split(':').map(Number);
+  const [y, mo, d] = m.fecha.split('-').map(Number);
+
+  let dtMadrid = DateTime.fromObject({ year: y, month: mo, day: d, hour: h, minute: min }, { zone: 'Europe/Madrid' });
   const dtLocal = dtMadrid.setZone(tzLocal);
   const dtEndLocal = dtLocal.plus({ minutes: FINALIZAR_MINUTOS });
-  const dtEndMadrid = dtMadrid.plus({ minutes: FINALIZAR_MINUTOS });
-  const estado = ahoraLocal >= dtEndLocal ? 3 : (ahoraLocal >= dtLocal ? 1 : 2);
-  return { estado, dtLocal, dtMadrid, dtEndLocal, dtEndMadrid };
+
+  let estado = ahoraLocal >= dtEndLocal ? 3 : (ahoraLocal >= dtLocal ? 1 : 2);
+
+  return { estado, dtLocal, dtMadrid, dtEndLocal };
 }
 
 // --- DATOS DE PARTIDOS ---
 const matches = [
   {
-    hora: "01:15",
-    liga: 6,
-    partido: "Liga Profesional: Belgrado vs Tigre",
-    canales: [
-      { nombre: "ESPN 2", url: "https://www.espn.com" }
-    ]
-  },
- {
-    hora: "03:06",
-    liga: 6,
-    partido: "Liga Profesional: Banfield vs Lanus",
+    fecha: "2025-11-04",
+    hora: "14:00",
+    liga: 2,
+    partido: "Premier League:  Manchester City vs Manchester United",
     canales: [
       { nombre: "ESPN 2", url: "https://www.espn.com" }
     ]
   },
   {
-    hora: "18:45",
+    fecha: "2025-11-04",
+    hora: "16:49",
+    liga: 4,
+    partido: "Champions League: Salva Praga vs Arsenal",
+    canales: [
+      { nombre: "ESPN 2", url: "https://www.espn.com" }
+    ]
+  },
+ {
+    fecha: "2025-11-04", 
+    hora: "21:00",
+    liga: 4,
+    partido: "Champions League: Liverpool vs Real Madrid",
+    canales: [
+      { nombre: "ESPN 2", url: "https://www.espn.com" }
+    ]
+  },
+  {
+    fecha: "2025-11-04", 
+    hora: "21:00",
     liga: 4,
     partido: "Champions League: Atletico vs St. Gilloise",
     canales: [
@@ -73,9 +74,10 @@ const matches = [
     ]
   },
   {
+    fecha: "2025-11-05", 
     hora: "21:00",
     liga: 4,
-    partido: "Champions League: Liverpool vs Real Madrid",
+    partido: "Champions League: Brujas vs Barcelona",
     canales: [
       { nombre: "ESPN", url: "https://www.espn.com" },
       { nombre: "Disney+", url: "https://www.starplus.com" }
@@ -88,51 +90,53 @@ const container = document.getElementById("matches");
 const search = document.getElementById("search");
 
 // --- FUNCIÓN DE RENDERIZADO PRINCIPAL ---
-
 function render(list) {
   container.innerHTML = "";
 
-  const items = list.map((m) => {
+  const items = list.map(m => {
     const logo = logos[m.liga] || "";
     const { estado, dtLocal, dtMadrid } = computeEstadoLocal(m);
     const origIdx = matches.indexOf(m);
     return { m, origIdx, logo, estado, dtLocal, dtMadrid };
   });
 
-items.sort((a, b) => {
-  const ahoraMadrid = luxon.DateTime.now().setZone('Europe/Madrid');
+  // Ordenar: En Vivo → Pronto hoy → Finalizado hoy → Próximos días
+  items.sort((a, b) => {
+    const hoyMadrid = DateTime.now().setZone('Europe/Madrid').toISODate();
+    const mananaMadrid = DateTime.now().setZone('Europe/Madrid').plus({ days: 1 }).toISODate();
 
-  // Detectar partidos de mañana según hora >= 7 AM Madrid
-  const aManana = a.dtMadrid.hour >= 7;
-  const bManana = b.dtMadrid.hour >= 7;
+    function getGroup(item) {
+      const fechaPartido = item.dtMadrid.toISODate();
+      if (item.estado === 1) return 1;
+      if (fechaPartido === hoyMadrid && item.estado === 2) return 2;
+      if (fechaPartido === hoyMadrid && item.estado === 3) return 3;
+      if (fechaPartido >= mananaMadrid) return 4; // futuros días
+      return 5;
+    }
 
-  // Ajustar estado final temporal: forzar Pronto para partidos de mañana
-  const estadoA = aManana ? 2 : a.estado;
-  const estadoB = bManana ? 2 : b.estado;
+    const groupA = getGroup(a);
+    const groupB = getGroup(b);
+    if (groupA !== groupB) return groupA - groupB;
+    return a.dtLocal.toMillis() - b.dtLocal.toMillis();
+  });
 
-  // 1️⃣ Primero los En Vivo
-  if (estadoA === 1 && estadoB !== 1) return -1;
-  if (estadoB === 1 && estadoA !== 1) return 1;
+items.forEach(({ m, origIdx, logo, estado, dtLocal, dtMadrid }) => {
+    const hoyMadrid = DateTime.now().setZone('Europe/Madrid').toISODate();
+    const mananaMadrid = DateTime.now().setZone('Europe/Madrid').plus({ days:1 }).toISODate();
 
-  // 2️⃣ Luego partidos de hoy (Pronto)
-  if (!aManana && bManana) return -1;
-  if (!bManana && aManana) return 1;
-
-  // 3️⃣ Finalmente, Finalizados o mañana
-  if (estadoA === 3 && estadoB !== 3) return 1;
-  if (estadoB === 3 && estadoA !== 3) return -1;
-
-  // 4️⃣ Dentro del mismo grupo, ordenar por hora local
-  return a.dtLocal.toMillis() - b.dtLocal.toMillis();
-});
-
-  // Renderizar según orden calculado
-  items.forEach(({ m, origIdx, logo, estado, dtLocal, dtMadrid }) => {
-    // Si el partido es después de las 7 AM en Madrid, forzar "Pronto"
-    const estadoFinal = dtMadrid.hour >= 7 ? 2 : estado;
+    let estadoFinal = estado;
+    if (dtMadrid.toISODate() > hoyMadrid) estadoFinal = 2; // futuros días siempre Pronto
 
     const est = estados[estadoFinal];
     const horaLocalAdaptada = dtLocal.toFormat("HH:mm");
+
+    // --- ETIQUETA HOY / MAÑANA AL COSTADO ---
+    let etiquetaFechaHtml = '';
+    if (estadoFinal === 2) {
+        const fechaPartido = dtMadrid.toISODate();
+        if (fechaPartido === hoyMadrid) etiquetaFechaHtml = `<span class="etiqueta-fecha">Hoy</span>`;
+        else if (fechaPartido === mananaMadrid) etiquetaFechaHtml = `<span class="etiqueta-fecha">Mañana</span>`;
+    }
 
     const card = document.createElement("article");
     card.className = "card";
@@ -143,7 +147,10 @@ items.sort((a, b) => {
           <img class="logo" src="${logo}" alt="Logo liga ${m.liga}" loading="lazy">
           <div class="teams" title="${m.partido}">${m.partido}</div>
         </div>
-        <div class="status ${est.clase}">${est.icono} ${est.texto}</div>
+        <div class="status-wrapper">
+          <div class="status ${est.clase}">${est.icono} ${est.texto}</div>
+          ${etiquetaFechaHtml} <!-- etiqueta al costado -->
+        </div>
       </div>
       <div class="card-body" id="body-${origIdx}">
         ${m.canales.map(c => `
@@ -158,14 +165,13 @@ items.sort((a, b) => {
       </div>
     `;
     container.appendChild(card);
-  });
+});
   attachHandlers();
 }
 
 // --- MANEJADORES DE DESPLIEGUE ---
 function attachHandlers() {
-
-  container.onclick = (e) => {
+  container.onclick = e => {
     const header = e.target.closest('.card-header');
     if (header) { toggle(header); return; }
 
@@ -176,84 +182,59 @@ function attachHandlers() {
         copiar.innerHTML = 'Copiado <i class="fa-solid fa-check"></i>';
         setTimeout(() => copiar.innerHTML = original, 2000);
       }).catch(() => {
-
         const ta = document.createElement('textarea');
         ta.value = copiar.dataset.url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
       });
       return;
     }
+
     const ver = e.target.closest('.ver-btn');
     if (ver) { window.open(ver.dataset.url, '_blank'); return; }
   };
-  container.addEventListener('keydown', (e) => {
+
+  container.addEventListener('keydown', e => {
     const header = e.target.closest('.card-header');
     if (!header) return;
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(header); }
   });
 }
-// Actualiza solo estados y visibilidad de botones sin re-renderizar todo
+
+
+// --- ACTUALIZACIÓN DE ESTADOS ---
 function updateStates() {
-  if (typeof luxon === 'undefined') return;
-  const { DateTime } = luxon;
   const tzLocal = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const ahoraLocal = DateTime.now().setZone(tzLocal);
-  // función auxiliar: calcula estado local (1=En Vivo, 2=Pronto, 3=Finalizado)
-  function getEstadoLocal(m) {
-    return computeEstadoLocal(m).estado;
-  }
-  let changed = false;
-  // Inicializar array de estados previo si no existe
+
   if (!Array.isArray(window.__prevEstados)) window.__prevEstados = matches.map(() => null);
 
-  document.querySelectorAll('.card').forEach((card) => {
+  document.querySelectorAll('.card').forEach(card => {
     const header = card.querySelector('.card-header');
     if (!header) return;
-    const origIdx = parseInt(header.dataset.index, 10);
+    const origIdx = parseInt(header.dataset.index,10);
     const m = matches[origIdx];
     if (!m) return;
 
-    const res = computeEstadoLocal(m);
-    let estadoAuto = res.dtMadrid.hour >= 7 ? 2 : res.estado;
-    const prevEstado = window.__prevEstados[origIdx];
-    if (prevEstado === 3 && estadoAuto === 2) {
-      const nowMadrid = DateTime.now().setZone('Europe/Madrid');
-      const nowLocal = DateTime.now().setZone(tzLocal);
-      const madrPassedMidnight = nowMadrid.toISODate() !== res.dtMadrid.toISODate();
-      const localPassedMidnight = nowLocal.toISODate() !== res.dtLocal.toISODate();
-      if (!(madrPassedMidnight && localPassedMidnight)) {
-        estadoAuto = 3; // mantener finalizado
-      }
-    }
+    const { estado, dtLocal, dtMadrid } = computeEstadoLocal(m);
+    let estadoAuto = estado;
+    const hoyMadrid = DateTime.now().setZone('Europe/Madrid').toISODate();
+    if (dtMadrid.toISODate() > hoyMadrid) estadoAuto = 2; // futuros días
 
-    if (prevEstado === null) {
-      window.__prevEstados[origIdx] = estadoAuto;
-    } else if (prevEstado !== estadoAuto) {
-      window.__prevEstados[origIdx] = estadoAuto;
-      changed = true;
-      // Si pasó a finalizado y antes no lo era, mover la card al final
-      if (estadoAuto === 3 && prevEstado !== 3) {
-        try { container.appendChild(card); } catch (e) { /* no bloquear */ }
-      }
-    }
-    // Actualizar estado visual
+    const prevEstado = window.__prevEstados[origIdx];
+    if (prevEstado === null) window.__prevEstados[origIdx] = estadoAuto;
+    else if (prevEstado !== estadoAuto) window.__prevEstados[origIdx] = estadoAuto;
+
     const statusEl = card.querySelector('.status');
     if (statusEl) {
       statusEl.textContent = estados[estadoAuto].texto;
       statusEl.className = 'status ' + estados[estadoAuto].clase;
     }
-    // Mostrar/ocultar botones
+
     const channelActions = card.querySelectorAll('.channel-actions');
-    channelActions.forEach(ca => {
-      ca.style.display = estadoAuto === 1 ? 'flex' : 'none';
-    });
+    channelActions.forEach(ca => { ca.style.display = estadoAuto === 1 ? 'flex' : 'none'; });
   });
-  // Si detectamos que algún estado cambió, recargamos la página para que todo se sincronice
-  if (changed) {
-    setTimeout(() => {
-      location.reload();
-    }, 600);
-  }
 }
+
+// --- TOGGLE ACORDEÓN ---
 function toggle(header) {
   const idx = header.dataset.index;
   const body = document.getElementById(`body-${idx}`);

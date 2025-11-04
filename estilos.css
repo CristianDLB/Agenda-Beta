@@ -141,6 +141,23 @@ body {
   background: #3B3B3B;
 }
 
+.status-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px; 
+}
+
+.etiqueta-fecha {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+    background-color: #169468;
+    color: #FFF;
+}
+
+
 /* --- CONTENIDO DESPLEGABLE (CANALES) --- */
 .card-body {
   display: flex;
