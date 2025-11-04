@@ -77,10 +77,7 @@ body {
   transition: transform .12s ease, box-shadow .2s ease;
   cursor: pointer;
 }
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-}
+
 
 /* --- CABECERA DEL CARD --- */
 .card-header {
@@ -102,7 +99,7 @@ body {
 
 .time {
   font-weight: 700;
-  color: #cfc5ff;
+  color: #fcfbff;
   width: 60px;
   text-align: center;
 }
@@ -146,21 +143,21 @@ body {
 
 /* --- CONTENIDO DESPLEGABLE (CANALES) --- */
 .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
   padding: 0 12px;
+  box-sizing: border-box;
   transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-              padding 0.35s ease,
-              opacity 0.28s ease;
+              padding 0.3s ease,
+              opacity 0.3s ease;
 }
+
 .card-body.open {
   padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: none;
-  box-sizing: border-box;
   opacity: 1;
 }
 
@@ -180,15 +177,23 @@ body {
   margin-bottom: 4px;
 }
 
-/* efecto de entrada para los items dentro del body */
 .card-body .channel-link {
-  transform: translateY(-6px);
-  opacity: 0;
-  transition: transform 0.36s cubic-bezier(0.2, 0, 0, 1), opacity 0.36s ease;
-}
-.card-body.open .channel-link {
   transform: translateY(0);
   opacity: 1;
+  transition: none; /* 🔹 Sin animación interna */
+}
+.card-body.open .channel-link {
+
+  transform: translateY(0);
+  opacity: 1;
+  transition-delay: var(--delay, 0ms);
+}
+
+
+.card-body.closing .channel-link {
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
 }
 
 .channel-link:hover {
@@ -220,3 +225,26 @@ body {
 .channel-btn:hover {
   background: #6d44a0;
 }
+
+/* Animación de entrada de las cards */
+
+#matches .card {
+  transform: translateY(24px);
+  opacity: 0;
+}
+
+#matches.loaded .card {
+  transform: translateY(0);
+  opacity: 1;
+  /* Duración larga y easing suave para la entrada general */
+  transition: transform 620ms cubic-bezier(0.22, 0.12, 0, 1),
+              opacity 420ms ease;
+}
+
+/* Staggered (retardo en cascada) para que la entrada sea más natural */
+#matches.loaded .card:nth-child(1) { transition-delay: 60ms; }
+#matches.loaded .card:nth-child(2) { transition-delay: 120ms; }
+#matches.loaded .card:nth-child(3) { transition-delay: 180ms; }
+#matches.loaded .card:nth-child(4) { transition-delay: 240ms; }
+#matches.loaded .card:nth-child(5) { transition-delay: 300ms; }
+#matches.loaded .card:nth-child(6) { transition-delay: 360ms; }

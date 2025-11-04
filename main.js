@@ -4,7 +4,8 @@ const logos = {
   2: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v12/Competitions/7", // Premier League
   3: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v3/Competitions/17", // Serie A
   4: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v5/Competitions/572",// Champions
-  5: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v6/Competitions/102" // Libertadores
+  5: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v6/Competitions/102", // Libertadores
+  6: "https://imagecache.365scores.com/image/upload/f_png,w_24,h_24,c_limit,q_auto:eco,dpr_2,d_Countries:Round:10.png/v4/Competitions/72"//Liga Profesional
 };
 
 // --- ESTADOS ---
@@ -24,33 +25,49 @@ function computeEstadoLocal(m) {
   const ahoraLocal = DateTime.now().setZone(tzLocal);
   const [h, min] = m.hora.split(':').map(Number);
   const ahoraMadrid = DateTime.now().setZone('Europe/Madrid');
-  const dtMadrid = DateTime.fromObject({
+  let dtMadrid = DateTime.fromObject({
     year: ahoraMadrid.year,
     month: ahoraMadrid.month,
     day: ahoraMadrid.day,
     hour: h,
     minute: min
   }, { zone: 'Europe/Madrid' });
+  if (dtMadrid > ahoraMadrid) {
+    const diffHours = dtMadrid.diff(ahoraMadrid, 'hours').hours;
+    if (diffHours > 12) {
+      // usar el día anterior
+      dtMadrid = dtMadrid.minus({ days: 1 });
+    }
+  }
   const dtLocal = dtMadrid.setZone(tzLocal);
-  const dtEnd = dtLocal.plus({ minutes: FINALIZAR_MINUTOS });
-  const estado = ahoraLocal >= dtEnd ? 3 : (ahoraLocal >= dtLocal ? 1 : 2);
-  return { estado, dtLocal };
+  const dtEndLocal = dtLocal.plus({ minutes: FINALIZAR_MINUTOS });
+  const dtEndMadrid = dtMadrid.plus({ minutes: FINALIZAR_MINUTOS });
+  const estado = ahoraLocal >= dtEndLocal ? 3 : (ahoraLocal >= dtLocal ? 1 : 2);
+  return { estado, dtLocal, dtMadrid, dtEndLocal, dtEndMadrid };
 }
 
 // --- DATOS DE PARTIDOS ---
 const matches = [
   {
-    hora: "22:30",
-    liga: 4,
-    partido: "Atletico vs St. Gilloise",
+    hora: "01:15",
+    liga: 6,
+    partido: "Liga Profesional: Belgrado vs Tigre",
     canales: [
       { nombre: "ESPN 2", url: "https://www.espn.com" }
     ]
   },
   {
-    hora: "22:32",
+    hora: "18:45",
     liga: 4,
-    partido: "Liverpool vs Real Madrid",
+    partido: "Champions League: Atletico vs St. Gilloise",
+    canales: [
+      { nombre: "ESPN 2", url: "https://www.espn.com" }
+    ]
+  },
+  {
+    hora: "21:00",
+    liga: 4,
+    partido: "Champions League: Liverpool vs Real Madrid",
     canales: [
       { nombre: "ESPN", url: "https://www.espn.com" },
       { nombre: "Disney+", url: "https://www.starplus.com" }
@@ -65,26 +82,26 @@ const search = document.getElementById("search");
 // --- FUNCIÓN DE RENDERIZADO PRINCIPAL ---
 function render(list) {
   container.innerHTML = "";
-  // Preparar lista con estado y hora local calculada
-  const items = list.map((m, idx) => {
+
+  const items = list.map((m) => {
     const logo = logos[m.liga] || "";
     const { estado, dtLocal } = computeEstadoLocal(m);
-    return { m, idx, logo, estado, dtLocal };
+    const origIdx = matches.indexOf(m);
+    return { m, origIdx, logo, estado, dtLocal };
   });
-  // Ordenar: los finalizados (3) al final; el resto por hora local ascendente
+
   items.sort((a, b) => {
     if ((a.estado === 3) !== (b.estado === 3)) return a.estado === 3 ? 1 : -1;
-    // si ambos son finalizados o ninguno, ordenar por dtLocal
     return a.dtLocal.toMillis() - b.dtLocal.toMillis();
   });
   // Renderizar según orden calculado
-  items.forEach(({ m, idx, logo, estado, dtLocal }) => {
+  items.forEach(({ m, origIdx, logo, estado, dtLocal }) => {
     const est = estados[estado] || estados[2];
     const horaLocalAdaptada = dtLocal.toFormat("HH:mm");
     const card = document.createElement("article");
     card.className = "card";
     card.innerHTML = `
-      <div class="card-header" data-index="${idx}" tabindex="0" role="button" aria-expanded="false">
+      <div class="card-header" data-index="${origIdx}" tabindex="0" role="button" aria-expanded="false">
         <div class="left">
           <div class="time">${horaLocalAdaptada}</div>
           <img class="logo" src="${logo}" alt="Logo liga ${m.liga}" loading="lazy">
@@ -92,7 +109,7 @@ function render(list) {
         </div>
         <div class="status ${est.clase}">${est.icono} ${est.texto}</div>
       </div>
-      <div class="card-body" id="body-${idx}">
+      <div class="card-body" id="body-${origIdx}">
         ${m.canales.map(c => `
           <div class="channel-link">
             <div class="ch-name">${c.nombre}</div>
@@ -147,7 +164,6 @@ function updateStates() {
   const tzLocal = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const ahoraLocal = DateTime.now().setZone(tzLocal);
   // función auxiliar: calcula estado local (1=En Vivo, 2=Pronto, 3=Finalizado)
-  // Usa la función global computeEstadoLocal
   function getEstadoLocal(m) {
     return computeEstadoLocal(m).estado;
   }
@@ -161,8 +177,20 @@ function updateStates() {
     const origIdx = parseInt(header.dataset.index, 10);
     const m = matches[origIdx];
     if (!m) return;
-    const estadoAuto = getEstadoLocal(m);
+
+    const res = computeEstadoLocal(m);
+    let estadoAuto = res.estado;
     const prevEstado = window.__prevEstados[origIdx];
+    if (prevEstado === 3 && estadoAuto === 2) {
+      const nowMadrid = DateTime.now().setZone('Europe/Madrid');
+      const nowLocal = DateTime.now().setZone(tzLocal);
+      const madrPassedMidnight = nowMadrid.toISODate() !== res.dtMadrid.toISODate();
+      const localPassedMidnight = nowLocal.toISODate() !== res.dtLocal.toISODate();
+      if (!(madrPassedMidnight && localPassedMidnight)) {
+        estadoAuto = 3; // mantener finalizado
+      }
+    }
+
     if (prevEstado === null) {
       window.__prevEstados[origIdx] = estadoAuto;
     } else if (prevEstado !== estadoAuto) {
@@ -192,53 +220,53 @@ function updateStates() {
     }, 600);
   }
 }
-// --- FUNCIÓN PARA ABRIR/CERRAR CARD ---
 function toggle(header) {
   const idx = header.dataset.index;
   const body = document.getElementById(`body-${idx}`);
   if (!body) return;
+
+  // Cerrar cualquier otro abierto
   document.querySelectorAll(".card-body.open").forEach(openBody => {
     if (openBody !== body) {
-      const prevHeader = openBody.previousElementSibling;
-      openBody.style.maxHeight = openBody.scrollHeight + "px";
-      openBody.offsetHeight; // fuerza reflow
-      openBody.style.maxHeight = "0";
-      openBody.style.overflow = "hidden";
+      openBody.classList.add('closing');
       openBody.classList.remove("open");
+      openBody.style.maxHeight = "0";
+      openBody.style.opacity = "0";
+      openBody.style.overflow = "hidden";
+      const prevHeader = openBody.previousElementSibling;
       if (prevHeader) prevHeader.setAttribute("aria-expanded", "false");
     }
   });
+
   const isOpen = body.classList.contains("open");
+
   if (isOpen) {
-    const currentHeight = body.scrollHeight;
-    body.style.maxHeight = currentHeight + "px";
-    body.offsetHeight;
-    body.style.maxHeight = "0";
-    body.style.overflow = "hidden";
-    header.setAttribute("aria-expanded", "false");
-
-    body.addEventListener("transitionend", () => {
-      body.classList.remove("open");
-      body.style.overflow = "hidden";
-    }, { once: true });
-  } else {
-    body.classList.add("open");
-    body.style.overflow = "hidden";
-    body.style.maxHeight = "0";
-
+    // Cerrar actual
+    body.style.maxHeight = body.scrollHeight + "px"; // set current height
     requestAnimationFrame(() => {
-      const targetHeight = body.scrollHeight;
-      body.style.maxHeight = targetHeight + "px";
+      body.classList.add('closing');
+      body.classList.remove("open");
+      body.style.maxHeight = "0";
+      body.style.opacity = "0";
+      body.style.overflow = "hidden";
+      header.setAttribute("aria-expanded", "false");
     });
-
-    body.addEventListener("transitionend", () => {
-      body.style.maxHeight = "none";
-      body.style.overflow = "visible";
-    }, { once: true });
-
+  } else {
+    // Abrir
+    body.classList.add("open");
+    body.style.maxHeight = body.scrollHeight + "px";
+    body.style.opacity = "1";
     header.setAttribute("aria-expanded", "true");
+    body.addEventListener("transitionend", () => {
+      if (body.classList.contains("open")) {
+        body.style.maxHeight = body.scrollHeight + 'px';
+        setTimeout(() => { body.style.overflow = 'visible'; }, 20);
+      }
+      body.classList.remove('closing');
+    }, { once: true });
   }
 }
+
 // --- BUSCADOR ---
 search.addEventListener("input", (e) => {
   const q = e.target.value.trim().toLowerCase();
@@ -280,5 +308,15 @@ setInterval(() => {
 }, 30000);
 // Ejecutar una primera actualización ligera después del render inicial
 updateStates();
+
 // --- RENDER INICIAL ---
 render(matches);
+
+// Animación: entrada de las cards desde abajo al cargar la página
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (container && !container.classList.contains('loaded')) {
+      container.classList.add('loaded');
+    }
+  }, 120);
+});
