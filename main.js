@@ -5,7 +5,9 @@ const logos = {
   3: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v3/Competitions/17", // Serie A
   4: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v5/Competitions/572",// Champions
   5: "https://imagecache.365scores.com/image/upload/f_png,w_32,c_limit,q_auto:eco/v6/Competitions/102", // Libertadores
-  6: "https://imagecache.365scores.com/image/upload/f_png,w_24,h_24,c_limit,q_auto:eco,dpr_2,d_Countries:Round:10.png/v4/Competitions/72"//Liga Profesional
+  6: "https://imagecache.365scores.com/image/upload/f_png,w_24,h_24,c_limit,q_auto:eco,dpr_2,d_Countries:Round:10.png/v4/Competitions/72", //Liga Profesional
+  7: "https://imagecache.365scores.com/image/upload/f_png,w_24,h_24,c_limit,q_auto:eco,dpr_2,d_Countries:Round:112.png/v3/Competitions/583", //Liga 1 Peru
+  8: "https://imagecache.365scores.com/image/upload/f_png,w_24,h_24,c_limit,q_auto:eco,dpr_2,d_Countries:Round:19.png/v6/Competitions/7685" //Conference League
 };
 
 // --- ESTADOS ---
@@ -39,18 +41,37 @@ function computeEstadoLocal(m) {
 const matches = [
   {
     fecha: "2025-11-05",
-    hora: "09:15",
-    liga: 2,
-    partido: "Premier League:  Manchester City vs Manchester United",
+    hora: "16:15",
+    liga: 7,
+    partido: "Liga 1: Sporting Cristal vs UTC Cajamarca",
     canales: [
       { nombre: "ESPN 2", url: "https://www.espn.com" }
     ]
   },
   {
     fecha: "2025-11-05",
-    hora: "16:49",
+    hora: "21:15",
+    liga: 7,
+    partido: "Liga 1: Los Chankas vs Alianza Lima",
+    canales: [
+      { nombre: "ESPN 2", url: "https://www.espn.com" }
+    ]
+  },
+  {
+    fecha: "2025-11-05",
+    hora: "21:00",
     liga: 4,
-    partido: "Champions League: Salva Praga vs Arsenal",
+    partido: "Champions League: Brujas vs Barcelona",
+    canales: [
+      { nombre: "ESPN 2", url: "https://www.espn.com" },
+      { nombre: "ESPN ", url: "https://www.espn.com" }
+    ]
+  },
+  {
+    fecha: "2025-11-06",
+    hora: "18:45",
+    liga: 8,
+    partido: "UEFA Conference League: Noah vs Sigma Olomouc",
     canales: [
       { nombre: "ESPN 2", url: "https://www.espn.com" },
       { nombre: "ESPN ", url: "https://www.espn.com" }
@@ -110,9 +131,10 @@ items.forEach(({ m, origIdx, logo, estado, dtLocal, dtMadrid }) => {
         const hoyLocal = DateTime.now().setZone(tzLocal).toISODate();
         const mananaLocal = DateTime.now().setZone(tzLocal).plus({ days: 1 }).toISODate();
         const fechaPartidoLocal = dtLocal.toISODate();
-
+        /*
         if (fechaPartidoLocal === hoyLocal) etiquetaFechaHtml = `<span class="etiqueta-fecha">Hoy</span>`;
         else if (fechaPartidoLocal === mananaLocal) etiquetaFechaHtml = `<span class="etiqueta-fecha">Mañana</span>`;
+        */
     }
 
     const card = document.createElement("article");
