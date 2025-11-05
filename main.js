@@ -38,8 +38,8 @@ function computeEstadoLocal(m) {
 // --- DATOS DE PARTIDOS ---
 const matches = [
   {
-    fecha: "2025-11-04",
-    hora: "14:00",
+    fecha: "2025-11-05",
+    hora: "09:15",
     liga: 2,
     partido: "Premier League:  Manchester City vs Manchester United",
     canales: [
@@ -47,40 +47,13 @@ const matches = [
     ]
   },
   {
-    fecha: "2025-11-04",
+    fecha: "2025-11-05",
     hora: "16:49",
     liga: 4,
     partido: "Champions League: Salva Praga vs Arsenal",
     canales: [
-      { nombre: "ESPN 2", url: "https://www.espn.com" }
-    ]
-  },
- {
-    fecha: "2025-11-04", 
-    hora: "21:00",
-    liga: 4,
-    partido: "Champions League: Liverpool vs Real Madrid",
-    canales: [
-      { nombre: "ESPN 2", url: "https://www.espn.com" }
-    ]
-  },
-  {
-    fecha: "2025-11-04", 
-    hora: "21:00",
-    liga: 4,
-    partido: "Champions League: Atletico vs St. Gilloise",
-    canales: [
-      { nombre: "ESPN 2", url: "https://www.espn.com" }
-    ]
-  },
-  {
-    fecha: "2025-11-05", 
-    hora: "21:00",
-    liga: 4,
-    partido: "Champions League: Brujas vs Barcelona",
-    canales: [
-      { nombre: "ESPN", url: "https://www.espn.com" },
-      { nombre: "Disney+", url: "https://www.starplus.com" }
+      { nombre: "ESPN 2", url: "https://www.espn.com" },
+      { nombre: "ESPN ", url: "https://www.espn.com" }
     ]
   }
 ];
@@ -133,9 +106,13 @@ items.forEach(({ m, origIdx, logo, estado, dtLocal, dtMadrid }) => {
     // --- ETIQUETA HOY / MAÑANA AL COSTADO ---
     let etiquetaFechaHtml = '';
     if (estadoFinal === 2) {
-        const fechaPartido = dtMadrid.toISODate();
-        if (fechaPartido === hoyMadrid) etiquetaFechaHtml = `<span class="etiqueta-fecha">Hoy</span>`;
-        else if (fechaPartido === mananaMadrid) etiquetaFechaHtml = `<span class="etiqueta-fecha">Mañana</span>`;
+        const tzLocal = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        const hoyLocal = DateTime.now().setZone(tzLocal).toISODate();
+        const mananaLocal = DateTime.now().setZone(tzLocal).plus({ days: 1 }).toISODate();
+        const fechaPartidoLocal = dtLocal.toISODate();
+
+        if (fechaPartidoLocal === hoyLocal) etiquetaFechaHtml = `<span class="etiqueta-fecha">Hoy</span>`;
+        else if (fechaPartidoLocal === mananaLocal) etiquetaFechaHtml = `<span class="etiqueta-fecha">Mañana</span>`;
     }
 
     const card = document.createElement("article");
